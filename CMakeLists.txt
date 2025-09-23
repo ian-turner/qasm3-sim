@@ -6,6 +6,8 @@ find_package(antlr4-runtime CONFIG REQUIRED)
 
 add_executable(q3sim
   src/main.cpp
+  src/Runtime.h
+  src/ExecVisitor.h
   gen/qasm3Lexer.cpp
   gen/qasm3Parser.cpp
   gen/qasm3ParserBaseVisitor.cpp
