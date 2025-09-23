@@ -5,11 +5,23 @@
 #include "qasm3Parser.h"
 #include "ExecVisitor.h"
 #include "Runtime.h"
+#include <cstring>  // for strcmp
+
 
 int main(int argc, char** argv) {
-  if (argc < 2) { std::cerr << "usage: q3sim <file.qasm>\n"; return 1; }
-  std::ifstream stream(argv[1]);
-  if (!stream) { std::cerr << "could not open " << argv[1] << "\n"; return 1; }
+  bool trace = false;
+  bool dump_state = false;
+  const char* filename = nullptr;
+
+  for (int i = 1; i < argc; ++i) {
+    if (std::strcmp(argv[i], "--trace") == 0) trace = true;
+    else if (std::strcmp(argv[i], "--dump-state") == 0) dump_state = true;
+    else filename = argv[i];
+  }
+  if (!filename) { std::cerr << "usage: q3sim [--trace] [--dump-state] file.qasm\n"; return 1; }
+
+  std::ifstream stream(filename);
+  if (!stream) { std::cerr << "could not open " << filename << "\n"; return 1; }
 
   antlr4::ANTLRInputStream input(stream);
   qasm3Lexer lexer(&input);
@@ -17,12 +29,11 @@ int main(int argc, char** argv) {
   qasm3Parser parser(&tokens);
 
   auto* tree = parser.program();
-  if (parser.getNumberOfSyntaxErrors() > 0) {
-    std::cerr << "parse errors\n"; return 2;
-  }
+  if (parser.getNumberOfSyntaxErrors() > 0) { std::cerr << "parse errors\n"; return 2; }
 
   Runtime rt;
-  ExecVisitor exec(rt);
+  ExecVisitor exec(rt, trace, std::cout);
+
   try {
     exec.visit(tree);
   } catch (const std::exception& ex) {
@@ -30,12 +41,9 @@ int main(int argc, char** argv) {
     return 3;
   }
 
-  // Optional: print final amplitudes for tiny states
-  if (rt.numQubits() <= 3) {
-    const auto& psi = rt.state();
-    for (size_t i = 0; i < psi.size(); ++i) {
-      std::cout << i << ": " << psi[i] << "\n";
-    }
+  if (dump_state || rt.numQubits() <= 3) {
+    rt.dumpState(std::cout);
   }
   return 0;
 }
+

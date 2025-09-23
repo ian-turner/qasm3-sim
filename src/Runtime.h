@@ -13,6 +13,17 @@ class Runtime {
 public:
   Runtime() : rng_(std::random_device{}()) {}
 
+  void dumpState(std::ostream& out, double eps = 1e-12) const {
+  out << "== Statevector (" << numQubits_ << " qubits) ==\n";
+  for (size_t i = 0; i < psi_.size(); ++i) {
+    double p = std::norm(psi_[i]);
+    if (p > eps) {
+      out << i << ": " << psi_[i] << "    |amp|^2=" << p << "\n";
+    }
+  }
+}
+
+
   // ----- Quantum allocation -----
   void allocQubits(const std::string& name, int n) {
     if (n <= 0) throw std::runtime_error("allocQubits: size must be > 0");
@@ -143,6 +154,22 @@ public:
   // For quick debugging
   int numQubits() const { return numQubits_; }
   const std::vector<cplx>& state() const { return psi_; }
+
+  void apply1(int q,
+            std::complex<double> u00, std::complex<double> u01,
+            std::complex<double> u10, std::complex<double> u11) {
+  const size_t N = psi_.size();
+  const size_t m = size_t{1} << q;
+  for (size_t i = 0; i < N; i += (m << 1)) {
+    for (size_t j = 0; j < m; ++j) {
+      auto a = psi_[i + j];
+      auto b = psi_[i + j + m];
+      psi_[i + j]     = u00 * a + u01 * b;
+      psi_[i + j + m] = u10 * a + u11 * b;
+    }
+  }
+}
+
 
 private:
   struct QReg { int base; int size; };
