@@ -1,12 +1,7 @@
 OPENQASM 3.0;
 include "stdgates.inc";
 
-qubit a;
-qubit b;
-bit[2] b;
+qubit[2] phi;
 
-h a;
-cx a, b;
-
-b[0] = measure a;
-b[1] = measure b;
+h phi[0];
+cx phi[0], phi[1];
