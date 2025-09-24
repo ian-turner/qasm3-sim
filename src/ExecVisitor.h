@@ -222,22 +222,22 @@ public:
     } else if (g == "u1") {
       // u1(lambda) q;  ->  diag(1, e^{i*lambda})
       using cd = std::complex<double>;
-      const cd I(0,1);
+      const cd I(0, 1);
       double lam = singleAngleParam(ctx);
       cd e = std::exp(I * lam);
-      apply_1q([&](int q){ rt_.apply1(q, 1.0, 0.0, 0.0, e); });
+      apply_1q([&](int q) { rt_.apply1(q, 1.0, 0.0, 0.0, e); });
     } else if (g == "sx") {
       // sqrt(X) = (1/2) * [[1+i, 1-i],[1-i, 1+i]]
       using cd = std::complex<double>;
       const cd a = cd(1, 1) * 0.5;  // (1+i)/2
-      const cd b = cd(1,-1) * 0.5;  // (1-i)/2
-      apply_1q([&](int q){ rt_.apply1(q, a, b, b, a); });
+      const cd b = cd(1, -1) * 0.5; // (1-i)/2
+      apply_1q([&](int q) { rt_.apply1(q, a, b, b, a); });
     } else if (g == "sxdg") {
       // inverse of sx = sx^\dagger = (1/2) * [[1-i, 1+i],[1+i, 1-i]]
       using cd = std::complex<double>;
-      const cd a = cd(1,-1) * 0.5;  // (1-i)/2
+      const cd a = cd(1, -1) * 0.5; // (1-i)/2
       const cd b = cd(1, 1) * 0.5;  // (1+i)/2
-      apply_1q([&](int q){ rt_.apply1(q, a, b, b, a); });
+      apply_1q([&](int q) { rt_.apply1(q, a, b, b, a); });
     } else {
       throw std::runtime_error("unsupported gate in this slice: " + g);
     }
