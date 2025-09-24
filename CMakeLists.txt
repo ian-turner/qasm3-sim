@@ -16,3 +16,9 @@ add_executable(q3sim
 target_include_directories(q3sim PRIVATE gen /usr/include/antlr4-runtime)
 target_link_libraries(q3sim PRIVATE antlr4-runtime)
 set_property(TARGET q3sim PROPERTY CXX_STANDARD 17)
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  target_compile_options(q3sim PRIVATE -fsanitize=address -fno-omit-frame-pointer -O1 -g)
+  target_link_options(q3sim PRIVATE -fsanitize=address)
+endif()
+
