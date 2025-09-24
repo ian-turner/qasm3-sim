@@ -84,52 +84,62 @@ public:
     return {};
   }
 
-  antlrcpp::Any visitAssignmentStatement(qasm3Parser::AssignmentStatementContext* ctx) override {
-  using P = qasm3Parser;
+  antlrcpp::Any visitAssignmentStatement(
+      qasm3Parser::AssignmentStatementContext *ctx) override {
+    using P = qasm3Parser;
 
-  // LHS
-  auto* lhs = ctx->indexedIdentifier();
-  if (!lhs) {
-    // Fallback: some grammars nest it — find it in the subtree.
-    lhs = findDescendantSkipping<P::IndexedIdentifierContext>(ctx, nullptr);
-    if (!lhs) throw std::runtime_error("assignment LHS not found");
-  }
+    // LHS
+    auto *lhs = ctx->indexedIdentifier();
+    if (!lhs) {
+      // Fallback: some grammars nest it — find it in the subtree.
+      lhs = findDescendantSkipping<P::IndexedIdentifierContext>(ctx, nullptr);
+      if (!lhs)
+        throw std::runtime_error("assignment LHS not found");
+    }
 
-  // Prefer a dedicated measure node if present (outside the LHS subtree)
-  if (auto* me = findDescendantSkipping<P::MeasureExpressionContext>(ctx, lhs)) {
-    int q = gateOperandToSingleIndex(me->gateOperand());
-    int r = rt_.measure(q);
-    writeIndexedIdentifier(lhs, r);
-    if (trace_) out_ << "measure -> " << r << "  (stored in " << lhs->getText() << ")\n";
-    return {};
-  }
-
-  // Fallback: grab the first ExpressionContext that is not inside the LHS subtree
-  auto* rhs = findDescendantSkipping<P::ExpressionContext>(ctx, lhs);
-  if (!rhs) throw std::runtime_error("assignment RHS missing");  // <- your previous error
-
-  // If the RHS text starts with "measure", try to locate its operand and treat it as a measure
-  const std::string rhsText = rhs->getText();
-  if (rhsText.rfind("measure", 0) == 0) {
-    if (auto* go = findDescendantSkipping<P::GateOperandContext>(rhs, nullptr)) {
-      int q = gateOperandToSingleIndex(go);
+    // Prefer a dedicated measure node if present (outside the LHS subtree)
+    if (auto *me =
+            findDescendantSkipping<P::MeasureExpressionContext>(ctx, lhs)) {
+      int q = gateOperandToSingleIndex(me->gateOperand());
       int r = rt_.measure(q);
       writeIndexedIdentifier(lhs, r);
-      if (trace_) out_ << "measure -> " << r << "  (stored in " << lhs->getText() << ")\n";
+      if (trace_)
+        out_ << "measure -> " << r << "  (stored in " << lhs->getText()
+             << ")\n";
       return {};
     }
-    throw std::runtime_error("measure RHS: could not locate gate operand");
+
+    // Fallback: grab the first ExpressionContext that is not inside the LHS
+    // subtree
+    auto *rhs = findDescendantSkipping<P::ExpressionContext>(ctx, lhs);
+    if (!rhs)
+      throw std::runtime_error(
+          "assignment RHS missing"); // <- your previous error
+
+    // If the RHS text starts with "measure", try to locate its operand and
+    // treat it as a measure
+    const std::string rhsText = rhs->getText();
+    if (rhsText.rfind("measure", 0) == 0) {
+      if (auto *go =
+              findDescendantSkipping<P::GateOperandContext>(rhs, nullptr)) {
+        int q = gateOperandToSingleIndex(go);
+        int r = rt_.measure(q);
+        writeIndexedIdentifier(lhs, r);
+        if (trace_)
+          out_ << "measure -> " << r << "  (stored in " << lhs->getText()
+               << ")\n";
+        return {};
+      }
+      throw std::runtime_error("measure RHS: could not locate gate operand");
+    }
+
+    // Otherwise plain classical assignment (evaluate RHS as int/bool)
+    int v = (int)evalInt(rhs);
+    writeIndexedIdentifier(lhs, v);
+    if (trace_)
+      out_ << "assign " << lhs->getText() << " = " << v << "\n";
+    return {};
   }
-
-  // Otherwise plain classical assignment (evaluate RHS as int/bool)
-  int v = (int)evalInt(rhs);
-  writeIndexedIdentifier(lhs, v);
-  if (trace_) out_ << "assign " << lhs->getText() << " = " << v << "\n";
-  return {};
-}
-
-
-
 
   // gateModifier* Identifier (...) designator? gateOperandList ';'
   antlrcpp::Any
@@ -263,22 +273,26 @@ public:
   }
 
 private:
-// Find the first descendant of type T, skipping an entire subtree (e.g., the LHS)
-template <typename T>
-T* findDescendantSkipping(antlr4::tree::ParseTree* n, antlr4::tree::ParseTree* skip) {
-  if (!n || n == skip) return nullptr;
-  if (auto* t = dynamic_cast<T*>(n)) return t;
-  for (auto* c : n->children) {
-    if (auto* r = findDescendantSkipping<T>(c, skip)) return r;
+  // Find the first descendant of type T, skipping an entire subtree (e.g., the
+  // LHS)
+  template <typename T>
+  T *findDescendantSkipping(antlr4::tree::ParseTree *n,
+                            antlr4::tree::ParseTree *skip) {
+    if (!n || n == skip)
+      return nullptr;
+    if (auto *t = dynamic_cast<T *>(n))
+      return t;
+    for (auto *c : n->children) {
+      if (auto *r = findDescendantSkipping<T>(c, skip))
+        return r;
+    }
+    return nullptr;
   }
-  return nullptr;
-}
 
-// Convenience wrapper: find a GateOperand anywhere under n
-qasm3Parser::GateOperandContext* findGateOperand(antlr4::tree::ParseTree* n) {
-  return findDescendantSkipping<qasm3Parser::GateOperandContext>(n, nullptr);
-}
-
+  // Convenience wrapper: find a GateOperand anywhere under n
+  qasm3Parser::GateOperandContext *findGateOperand(antlr4::tree::ParseTree *n) {
+    return findDescendantSkipping<qasm3Parser::GateOperandContext>(n, nullptr);
+  }
 
   // ----- helpers -----
   // gateOperandList: gateOperand (',' gateOperand)* ','
